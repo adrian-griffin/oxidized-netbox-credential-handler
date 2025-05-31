@@ -43,7 +43,7 @@ func loadCreds(credentialFilePath string) {
         log.Fatalf("invalid JSON in credentials file: %v", err)
     }
     // if "default" doesn't exist in credSets struct, log warn
-    if _, err := credSets["default"]; !err {
+    if _, defaultCreds := credSets["default"]; !defaultCreds {
         log.Println("[WARN] no 'default' credential set defined – devices with unknown sets will error")
     }
     log.Printf("[INFO] loaded %d credential sets", len(credSets))
@@ -136,8 +136,8 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 // validate that slugs are safe, else return unknown slug
-func safeSlug(interface interface{}) string {
-    switch t := interface.(type) {
+func safeSlug(v interface{}) string {
+    switch t := v.(type) {
     case *struct{ Slug string `json:"slug"` }:
         if t != nil {
             return t.Slug
@@ -155,9 +155,9 @@ func main() {
 }
 
 // based on key & credentialfile path, return 
-func getEnv(key, default string) string {
+func getEnv(key, def string) string {
     if err := os.Getenv(key); err != "" {
         return err
     }
-    return default
+    return def
 }
