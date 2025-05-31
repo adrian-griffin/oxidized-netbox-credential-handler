@@ -78,6 +78,7 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
         http.Error(writer, "failed talking to NetBox: " + err.Error(), 502) // 502: Bad Gateway
         return
     }
+    log.Printf("[INFO] Good GET request to %s", nbURL)
 
     // create wrapper nb struct that contains nothing but an inner Results struct 
     var nb struct {
@@ -126,12 +127,12 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
             Password: cred.Password,
         })
     }
-
-
     // set HTTP writer content type to json
     writer.Header().Set("Content-Type", "application/json")
     // encode output out http interface
     json.NewEncoder(writer).Encode(map[string]interface{}{"results": output})
+
+    log.Printf("[INFO] returned %d valid nodes", len(nb.Results))
 }
 
 // validate that slugs are safe, else return unknown slug

@@ -1,0 +1,34 @@
+# Put your credential-sets JSON here or reference another file
+secrets:
+  cred_sets.json:
+    file: ./cred-sets.json        # be sure to chmod 600
+
+networks:
+  oxidized-wrapper-network:
+
+services:
+  cred-wrapper:
+    build: .                     # Dockerfile builds the Go binary → tiny Alpine image
+    container_name: cred-wrapper
+    restart: unless-stopped
+    networks: [oxidized-wrapper-network]
+
+    # secrets get mounted at /run/secrets/<name>
+    secrets: [cred_sets.json]
+
+    environment:
+      NETBOX_URL: >-
+        https://netbox.abc.com/api/dcim/devices/
+        ?cf_oxidized_backup_bool=true
+        &status=active
+        &primary_ip4__isnull=false
+        &limit=0
+      NETBOX_TOKEN: "${NETBOX_TOKEN}" # export in your shell or .env
+      CREDENTIALS_FILE: /run/secrets/cred_sets.json
+      LISTEN: "0.0.0.0:8081"
+
+    # Simple health-check so Oxidized only talks to a ready wrapper
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/devices"]
+      interval: 30s
+      retries: 3
