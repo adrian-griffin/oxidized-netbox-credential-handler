@@ -165,12 +165,21 @@ func safeSlug(v interface{}) string {
     return "unknown"
 }
 
+// health check endpoint
+func healthPoll(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusOK)
+}
+
 func main() {
 
-    const Version = "v0.50.2"
+    const Version = "v0.50.3"
 
     loadCreds(getEnv("CREDENTIALS_FILE", "/etc/oxidized/cred-sets.json"))
+
     http.HandleFunc("/devices", devicesHandler)
+
+    http.HandleFunc("/healthz", healthPoll)
+
     addr := getEnv("LISTEN", "0.0.0.0:8081")
     log.Printf("[INFO] cred-wrapper %s listening on %s", Version, addr)
     log.Fatal(http.ListenAndServe(addr, nil))
