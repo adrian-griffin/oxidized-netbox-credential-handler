@@ -1,0 +1,39 @@
+# put your credential-sets JSON here or reference another file
+secrets:
+  cred_sets.json:
+    file: ./cred-sets.json        # be sure to chmod 600
+
+# using docker networks between Oxidized & this API is recommended, rather than
+# binding a port onto the host through docker where it is accessible by other services/hosts, keep 'ports' commented out
+# and put Oxidized's docker container into the same Docker network
+networks:
+  oxidized-wrapper-network:
+    external: true
+
+services:
+  cred-wrapper:
+    build: .  # ensure your Dockerfile is in the same dir as composefile
+    container_name: cred-wrapper
+    restart: unless-stopped
+
+    networks: [oxidized-wrapper-network]
+
+    ## if not using docker networks, enable external port mapping
+    ## just be sure to firewall appropriately!
+    #ports:
+    #  - 8914:8081/tcp
+
+    # secrets get mounted at /run/secrets/<name> internally
+    secrets: [cred_sets.json]
+
+    environment:
+      NETBOX_URL: "https://netbox.abc.com/api/dcim/devices/?cf_oxidized_backup_bool=true&status=active&primary_ip4__isnull=false&limit=0"
+      NETBOX_TOKEN: "${NETBOX_TOKEN}" # export in your shell or .env
+      CREDENTIALS_FILE: /run/secrets/cred_sets.json
+      LISTEN: "0.0.0.0:8081" # listen within container on 8081
+
+    # Simple health-check so Oxidized only talks to a ready wrapper
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/devices"]
+      interval: 10s
+      retries: 3

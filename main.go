@@ -1,7 +1,6 @@
 package main
 
 // Oxidized-Netbox API integration wrapper, handles credential sets for Oxidized backups on behalf of Netbox
-// v0.50.0
 
 import (
     "encoding/json"
@@ -11,6 +10,8 @@ import (
     "os"
     "strings"
 )
+
+const Version = "v0.50.2"
 
 // define credential set struct
 type CredSet struct {
@@ -64,7 +65,26 @@ func httpGETRequest(url, apiToken string) ([]byte, error) {
     return io.ReadAll(response.Body)
 }
 
+// best effort at extracting client IP
+func getClientIP(r *http.Request) string {
+    // X-Forwarded-For may contain a list. take the first entry.
+    if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+        return strings.TrimSpace(strings.Split(xff, ",")[0])
+    }
+    if rip := r.Header.Get("X-Real-IP"); rip != "" {
+        return rip
+    }
+    host, _, err := net.SplitHostPort(r.RemoteAddr)
+    if err != nil {
+        return r.RemoteAddr // fallback as‑is
+    }
+    return host
+}
+
 func devicesHandler(writer http.ResponseWriter, request *http.Request) {
+    // log every request
+    log.Printf("[REQ] %s %s from %s", r.Method, r.URL.Path, getClientIP(r))
+    
     nbURL := os.Getenv("NETBOX_URL")
     nbToken := os.Getenv("NETBOX_TOKEN")
     if nbURL == "" || nbToken == "" {
@@ -147,10 +167,11 @@ func safeSlug(v interface{}) string {
 }
 
 func main() {
+
     loadCreds(getEnv("CREDENTIALS_FILE", "/etc/oxidized/cred-sets.json"))
     http.HandleFunc("/devices", devicesHandler)
     addr := getEnv("LISTEN", "0.0.0.0:8081")
-    log.Println("[INFO] cred-wrapper listening on", addr)
+    log.Printf("[INFO] cred-wrapper %s listening on %s", Version, addr)
     log.Fatal(http.ListenAndServe(addr, nil))
 }
 
