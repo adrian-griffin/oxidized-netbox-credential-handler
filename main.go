@@ -9,9 +9,8 @@ import (
     "net/http"
     "os"
     "strings"
+    "net"
 )
-
-const Version = "v0.50.2"
 
 // define credential set struct
 type CredSet struct {
@@ -83,7 +82,7 @@ func getClientIP(r *http.Request) string {
 
 func devicesHandler(writer http.ResponseWriter, request *http.Request) {
     // log every request
-    log.Printf("[REQ] %s %s from %s", r.Method, r.URL.Path, getClientIP(r))
+    log.Printf("[REQ] %s %s from %s", request.Method, request.URL.Path, getClientIP(request))
     
     nbURL := os.Getenv("NETBOX_URL")
     nbToken := os.Getenv("NETBOX_TOKEN")
@@ -167,6 +166,8 @@ func safeSlug(v interface{}) string {
 }
 
 func main() {
+
+    const Version = "v0.50.2"
 
     loadCreds(getEnv("CREDENTIALS_FILE", "/etc/oxidized/cred-sets.json"))
     http.HandleFunc("/devices", devicesHandler)
