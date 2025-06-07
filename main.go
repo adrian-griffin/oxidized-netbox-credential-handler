@@ -181,7 +181,7 @@ func healthPoll(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	const Version = "v0.50.3"
+	const Version = "v0.50.4"
 
 	loadCreds(getEnv("CREDENTIALS_FILE", "/etc/oxidized/cred-sets.json"))
 
