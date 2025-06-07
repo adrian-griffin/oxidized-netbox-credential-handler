@@ -18,9 +18,9 @@ The API token to authenticate *against* NetBox must be passed as a shell Environ
 export NETBOX_TOKEN="<key>"
 ```
 
-The auth token for inbound requests to the credential wrapper's API, it too must be passed as an env var each time the service is started
+The auth token for inbound requests to the credential wrapper's API, too, must be passed as an env var each time the service is started from a new shell
 
-Just generate/create one as needed, whatever you pass at runtime here will be the required token coming from Oxidized for the query requests
+Just generate/create one as needed, whatever you pass at runtime here will be the required token coming from Oxidized for the device query requests
 
 ```sh
 export WRAPPER_TOKEN="<key>"
@@ -46,7 +46,8 @@ go build -o cred-wrapper
 # import environment variables
 NETBOX_URL="https://10.0.0.1/api/dcim/devices/?cf_oxidized_backup_bool=true&limit=0" \
 NETBOX_TOKEN="<api_token>" \
-CREDENTIALS_FILE="./credential-sets.json" \
+WRAPPER_TOKEN="<api_token>" \
+CREDENTIALS_FILE="./cred-sets.json" \
 
 # run
 ./cred-wrapper
@@ -93,6 +94,7 @@ create env file
 # located at /etc/oxidized/cred-wrapper.env
 NETBOX_URL=https://netbox.abc.com/api/dcim/devices/?cf_oxidized_backup_bool=true&limit=0
 NETBOX_TOKEN=xxx
+WRAPPER_TOKEN=xxx
 CREDENTIALS_FILE=/etc/oxidized/cred-sets.json
 LISTEN=127.0.0.1:8081
 ```
@@ -125,7 +127,7 @@ build docker image & start container
 # edit your docker-compose.yml file now
 > cd /opt/docker/oxidized-cred-wrapper && vim
  
-# be sure to EXPORT=NETBOX_TOKEN=<abc> here
+# be sure to EXPORT env vars here
 > docker compose up --build
 
 Compose can now delegate builds to bake for better performance.
