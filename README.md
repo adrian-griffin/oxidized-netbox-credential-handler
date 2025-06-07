@@ -1,9 +1,26 @@
 # oxidized-netbox-credential-handler
-An api wrapper for handling credential sets securely between netbox &amp; oxidized, written in Go!
+An api wrapper for handling credential sets between netbox & oxidized, written in Go!
+
+Oxidized fundamentally cannot accept any fashion of credentials from NetBox without the username/password for the device being stored in plaintext in NetBox, and this is a small wrapper API written to rectify that issue, allowing Credential Sets to be created in NetBox custom fields (such as `office-switch-admin`, `vps-root-creds`, etc.) to be defined on the NetBox devices instead. It's written in Go and not contributed to the project because I can't write in Ruby and dont feel like learning it (and for fun).
+
+Quite basic overall, but it runs as a service (can be run headless as a systemd daemon or docker service), and queries NetBox's API on behalf of Oxidized to allow `Credential Sets` defined in NetBox be parsed into valid `username:password` pairs that are returned to Oxidized for its SSH authentication. A credentials `.json` file is defined on the machine running service & Oxidized to define credential sets. 
+
+### Security! ⚠️
+
+It is recommended to run this as a Docker service alongside Oxidized (in a Docker container as well), so that they can share a Docker Network with only each other, this allows **only Oxidized** to query the service's API endpoint, and the socket is never even <u>bound to the host machine</u>, which is much more secure than binding it and trying to protect it.
+
+If you do not want to run it as a Docker Container/do end up binding its listen port to the host machine, please ensure that port `:8081/tcp` or whatever else you map it to is ___properly firewalled___ !
+
+The API token to authenticate against NetBox must be passed as a shell Environment variable each time you log in to restart or start the service, such that it is never hardcoded, such as:
+```sh
+export NETBOX_TOKEN="<key>
+```
 
 ## Setup & Usage Examples
 
-### Simple binary
+Because I'm not planning on writing much config/customization into this, for any changes you'll need to adjust the raw source & recompile
+
+### Simple binary (testing)
 
 ```shell
 # build using go
@@ -17,14 +34,12 @@ go build -o cred-wrapper
 # import environment variables
 NETBOX_URL="https://10.0.0.1/api/dcim/devices/?cf_oxidized_backup_bool=true&limit=0" \
 NETBOX_TOKEN="<api_token>" \
-CREDENTIALS_FILE="/etc/credential-sets.json" \
-```
+CREDENTIALS_FILE="./credential-sets.json" \
 
-```shell
 # run
-> ./cred-wrapper
-2025/05/31 14:00:36 [INFO] loaded 2 credential sets
-2025/05/31 14:00:36 [INFO] cred-wrapper listening on 0.0.0.0:8081
+./cred-wrapper
+2025/06/01 01:19:52 [INFO] loaded 4 credential sets
+2025/06/01 01:19:52 [INFO] cred-wrapper v0.50.3 listening on 0.0.0.0:8081
 ```
 
 alternatively move it to `/usr/local/bin` to allow it to be run from anywhere
@@ -70,16 +85,44 @@ CREDENTIALS_FILE=/etc/oxidized/cred-sets.json
 LISTEN=127.0.0.1:8081
 ```
 
-### Docker compose file example
-1) export NetBox token or put it in an .env file
-`export NETBOX_TOKEN="abc123"`
+### Docker compose file (recommended)
 
-2) docker compose up
-`docker compose up -d`        # launches both
+git clone repo & copy needed files into new docker compose directory
+```shell
+# git clone repo
+git clone https://github.com/adrian-griffin/oxidized-netbox-credential-handler.git && cd oxidized-netbox-credential-handler
 
-3) check logs
-`docker compose logs -f cred-wrapper`
-`docker compose logs -f oxidized`
+# either create new docker destination dir or work out of cloned repo
+# if you move to a new dir, be sure to copy needed files
+mkdir /opt/docker/oxidized-cred-wrapper
+```
 
-4) restart only the wrapper later
-`docker compose restart cred-wrapper`
+copy needed files if you move to a new directory
+```shell
+# copy sourcecode files
+cp main.go /opt/docker/oxidized-cred-wrapper
+cp go.mod /opt/docker/oxidized-cred-wrapper
+
+# copy docker files
+cp docker-compose\ Examples/docker-compose-example.yaml /opt/docker/oxidized-cred-wrapper/docker-compose.yml
+cp docker-compose\ Examples/Dockerfile-example.dockerfile /opt/docker/oxidized-cred-wrapper/Dockerfile
+```
+
+build docker image & start container
+```shell
+# edit your docker-compose.yml file now
+> cd /opt/docker/oxidized-cred-wrapper && vim
+ 
+# be sure to EXPORT=NETBOX_TOKEN=<abc> here
+> docker compose up --build
+
+Compose can now delegate builds to bake for better performance.
+ To do so, set COMPOSE_BAKE=true.
+[+] Building 6.7s (9/12)
+ => [cred-wrapper internal] load build definition from Dockerfile
+ => => transferring dockerfile: 361B
+ => [cred-wrapper internal] load metadata for docker.io/library/alpine:3.20
+ => [cred-wrapper internal] load metadata for docker.io/library/golang:1.22-alpine
+ => [cred-wrapper internal] load .dockerignore
+   .  .  .  .  
+```

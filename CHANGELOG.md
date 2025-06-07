@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.50.4] - 2025-6-1
+- /healthz tweaks 
+- README updates
+
 ## [0.50.3] - 2025-5-31
 - Adding healthz endpoint
 
