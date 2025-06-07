@@ -1,9 +1,11 @@
 # oxidized-netbox-credential-handler
 An api wrapper for handling credential sets between netbox & oxidized, written in Go!
 
-Oxidized fundamentally cannot accept any fashion of credentials from NetBox without the username/password for the device being stored in plaintext in NetBox, and this is a small wrapper API written to rectify that issue, allowing Credential Sets to be created in NetBox custom fields (such as `office-switch-admin`, `vps-root-creds`, etc.) to be defined on the NetBox devices instead. It's written in Go and not contributed to the project because I can't write in Ruby and dont feel like learning it (and for fun).
+Oxidized fundamentally cannot accept any fashion of credentials from NetBox without the username/password for the device being stored in plaintext in NetBox, and this is a small wrapper API written to rectify that issue, allowing Credential Sets to be created in NetBox's custom fields (such as `office-switch-admin`, `vps-root-creds`, etc.) that are parsed and returned to Oxidized in a fashion that it accepts. Too, with the added benefit of sterilizing NetBox's data before it reaches Oxidized. 
 
-Quite basic overall, but it runs as a service (can be run headless as a systemd daemon or docker service), and queries NetBox's API on behalf of Oxidized to allow `Credential Sets` defined in NetBox be parsed into valid `username:password` pairs that are returned to Oxidized for its SSH authentication. A credentials `.json` file is defined on the machine running service & Oxidized to define credential sets. 
+It's written in Go and not contributed to the Oxidized project because I can't write in Ruby and dont feel like learning it (and writing the api for fun).
+
+Quite basic overall, but it runs as a service (can be run headless as a systemd daemon or docker service), and queries NetBox's API on behalf of Oxidized to allow `Credential Sets` defined in NetBox be parsed into valid `username:password` pairs that are returned to Oxidized for its SSH authentication. A credentials `.json` file is defined on the machine to define credential sets. 
 
 ### Security! ⚠️
 
@@ -11,14 +13,24 @@ It is recommended to run this as a Docker service alongside Oxidized (in a Docke
 
 If you do not want to run it as a Docker Container/do end up binding its listen port to the host machine, please ensure that port `:8081/tcp` or whatever else you map it to is ___properly firewalled___ !
 
-The API token to authenticate against NetBox must be passed as a shell Environment variable each time you log in to restart or start the service, such that it is never hardcoded, such as:
+The API token to authenticate *against* NetBox must be passed as a shell Environment variable each time you log in to restart or start the service, such that it is never hardcoded, such as:
 ```sh
-export NETBOX_TOKEN="<key>
+export NETBOX_TOKEN="<key>"
+```
+
+The auth token for inbound requests to the credential wrapper's API, it too must be passed as an env var each time the service is started
+
+Just generate/create one as needed, whatever you pass at runtime here will be the required token coming from Oxidized for the query requests
+
+```sh
+export WRAPPER_TOKEN="<key>"
 ```
 
 ## Setup & Usage Examples
 
 Because I'm not planning on writing much config/customization into this, for any changes you'll need to adjust the raw source & recompile
+
+You'll need go or docker on the machine to build
 
 ### Simple binary (testing)
 

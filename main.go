@@ -20,15 +20,19 @@ type CredSet struct {
 
 // oxidized output fields
 type DeviceOut struct {
-	Name     string `json:"name"`
-	IP       string `json:"ip"`
-	Model    string `json:"model"`
-	Group    string `json:"group"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Name      string `json:"name"`
+	IP        string `json:"ip"`
+	Model     string `json:"model"`
+	Group     string `json:"group"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	EnablePwd string `json:"enable_password"`
 }
 
 var credSets map[string]CredSet
+
+// define inbound api auth token via env var
+var allowedAPIKey = getEnv("WRAPPER_TOKEN", "")
 
 // reads credential sets from disk file
 func loadCreds(credentialFilePath string) {
@@ -85,6 +89,14 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
 	// log every request
 	log.Printf("[REQ] %s %s from %s", request.Method, request.URL.Path, getClientIP(request))
 
+	// check api token header for authorization
+	clientAPIKey := request.Header.Get("Authorization")
+	if clientAPIKey != "Token "+allowedAPIKey {
+		http.Error(writer, "unauthorized", http.StatusUnauthorized)
+		log.Printf("[WARN] unauthorized request from %s", getClientIP(request))
+		return
+	}
+
 	nbURL := os.Getenv("NETBOX_URL")
 	nbToken := os.Getenv("NETBOX_TOKEN")
 	if nbURL == "" || nbToken == "" {
@@ -113,7 +125,7 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
 			Site *struct {
 				Slug string `json:"slug"`
 			} `json:"site"`
-			CustomFields map[string]interface{} `json:"custom_fields"`
+			CustomFields map[string]interface{} `json:"custom_fields"` // (no, i still dont get this)
 		} `json:"results"`
 	}
 	// unmarshal json data into nb structs
@@ -136,6 +148,8 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
 		// look for nb_cf named "credential_set"
 		setName, _ := device.CustomFields["credential_set"].(string)
 
+		enablePassword, _ := device.CustomFields["enable_password"].(string)
+
 		// look for setName in credSets, return default if err
 		cred, err := credSets[setName]
 		if !err {
@@ -144,12 +158,13 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
 		}
 
 		output = append(output, DeviceOut{
-			Name:     device.Name,
-			IP:       sanitizedIP,
-			Model:    safeSlug(device.Platform),
-			Group:    safeSlug(device.Site),
-			Username: cred.Username,
-			Password: cred.Password,
+			Name:      device.Name,
+			IP:        sanitizedIP,
+			Model:     safeSlug(device.Platform),
+			Group:     safeSlug(device.Site),
+			Username:  cred.Username,
+			Password:  cred.Password,
+			EnablePwd: enablePassword,
 		})
 	}
 	// set HTTP writer content type to json
@@ -160,7 +175,7 @@ func devicesHandler(writer http.ResponseWriter, request *http.Request) {
 	log.Printf("[INFO] returned %d valid nodes", len(nb.Results))
 }
 
-// validate that slugs are safe, else return unknown slug
+// validate that slugs are !netbox's null,  return blank string at least
 func safeSlug(v interface{}) string {
 	switch t := v.(type) {
 	case *struct {
@@ -170,7 +185,7 @@ func safeSlug(v interface{}) string {
 			return t.Slug
 		}
 	}
-	return "unknown"
+	return ""
 }
 
 // health check endpoint
@@ -181,9 +196,9 @@ func healthPoll(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 
-	const Version = "v0.50.4"
+	const Version = "v0.51.0"
 
-	loadCreds(getEnv("CREDENTIALS_FILE", "/etc/oxidized/cred-sets.json"))
+	loadCreds(getEnv("CREDENTIALS_FILE", "./cred-sets.json"))
 
 	http.HandleFunc("/devices", devicesHandler)
 
@@ -194,7 +209,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(addr, nil))
 }
 
-// based on key & credentialfile path, return
+// get env variables and return, otherwise use default passed
 func getEnv(key, def string) string {
 	if err := os.Getenv(key); err != "" {
 		return err
