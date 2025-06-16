@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.52.01] - 2025-6-16
+- Added dynamic SSH port mapping from NetBox
+
 ## [0.51.0] - 2025-6-6
 - Added enable password support (`cf.enable_password` in netbox)
 - Added inbound API auth/token validation for requests
