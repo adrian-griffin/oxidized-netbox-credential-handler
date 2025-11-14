@@ -1,7 +1,10 @@
-# put your credential-sets JSON here or reference another file
 secrets:
-  cred_sets.json:
-    file: ./cred-sets.json        # be sure to chmod 600
+  # put your credential-sets JSON here, or reference another file directly
+  cred_sets:
+    file: ./cred-sets.json            # be sure to chmod 600
+  # if internal CA/sef-signed certs are used, place your CA's root.crt here
+  internal_ca_crt:
+    file: ./nb-internal-ca-root.crt   # be sure to chmod 600
 
 # using docker networks between Oxidized & this API is recommended, rather than
 # binding a port onto the host through docker where it is accessible by other services/hosts, keep 'ports' commented out
@@ -18,20 +21,28 @@ services:
 
     networks: [oxidized-wrapper-network]
 
+    # if you have internal DNS or need to static assign a host:IP mapping
+    extra_hosts: ["netbox.abc.com:10.0.0.1"]
+
     ## if not using docker networks, enable external port mapping
     ## just be sure to firewall appropriately!
     #ports:
     #  - 8914:8081/tcp
 
     # secrets get mounted at /run/secrets/<name> internally
-    secrets: [cred_sets.json]
+    secrets: 
+      - cred_sets
+      - internal_ca_crt
 
     environment:
       NETBOX_URL: "https://netbox.abc.com/api/dcim/devices/?cf_oxidized_backup_bool=true&status=active&primary_ip4__isnull=false&limit=0"
       NETBOX_TOKEN: "${NETBOX_TOKEN}"   # export in your shell or .env
       WRAPPER_TOKEN: "${WRAPPER_TOKEN}" # export in your shell or .env
-      CREDENTIALS_FILE: /run/secrets/cred_sets.json
+    
       LISTEN: "0.0.0.0:8081" # listen within container on 8081
+
+      CREDENTIALS_FILE: /run/secrets/cred_sets
+      NETBOX_CA_FILE: /run/secrets/internal_ca_crt
 
     # Simple health-check so Oxidized only talks to a ready wrapper
     healthcheck:
